@@ -2,8 +2,6 @@ import ServerDriver from '#root/drivers/Server/Driver.js';
 import Provider from '#root/bootstrap/Provider.js';
 import config from '#root/config/index.js';
 
-console.log( { config } );
-
 export default class App {
     driver = {};
     config = config;
