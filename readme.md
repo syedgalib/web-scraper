@@ -1,14 +1,12 @@
-# HelpGent Live
+# Web Scraper
 
 ## Requirements
 1. [Node JS](https://nodejs.org/en/download/package-manager) ( v22.7.0 or later )
-2. [MongoDB](https://www.mongodb.com/docs/manual/administration/install-community) ( v7.0 or later )
-3. [Redis](https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis) ( v7.2.5 or later )
 
 ## Instalation
 1. Clone Github Repository
    ```sh
-   git clone https://github.com/sovware/helpgent-live.git
+   git clone https://github.com/syedgalib/web-scraper.git
    ```
 
 2. Install node dependencies
@@ -17,5 +15,4 @@
    ```
 
 ### API
-1. [REST](https://www.postman.com/sovware/workspace/sovware/collection/26468738-2fbe3fa7-cec5-4612-a442-eeccfe4f10cd)
-2. [Socket](https://www.postman.com/sovware/workspace/sovware/collection/66bda0832a37b96139c3203d)
+1. [REST](https://syed-galib.postman.co/workspace/Team-Workspace~d2979cc0-e7d1-40ab-8c47-51165dea06c8/collection/17543339-5b18f6b5-0d51-44a4-b494-7d630410108d?action=share&creator=17543339&active-environment=17543339-c119b28a-30d8-47be-a53e-40d61c0c82a1)
