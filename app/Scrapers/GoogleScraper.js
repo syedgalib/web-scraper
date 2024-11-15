@@ -8,89 +8,130 @@ export default class GoogleScraper {
         return { data };
     }
 
+    async wait( duration ) {
+        return new Promise( ( resolve ) => {
+            setTimeout( resolve, duration );
+        } );
+    }
+
     async scrapReviews() {
-        const browser = await puppeteer.launch();
-        const page    = await browser.newPage();
-        
+        const browser = await puppeteer.launch({
+            args: ['--lang=en-US'],
+        });
+        const page = await browser.newPage();
         const url = 'https://www.google.com/search?q=Katz%E2%80%99s+Delicatessen&oq=Katz%E2%80%99s+Delicatessen&gs_lcrp=EgZjaHJvbWUyBggAEEUYOdIBBzI3OGowajeoAgCwAgA&sourceid=chrome&ie=UTF-8#lrd=0x89c2598f7ff4aa09:0x313547e757cb8cea,1,,,,';
         
-        await page.goto( url );
-    
-        await page.waitForSelector( '.review-dialog-top', { visible: true } );
-    
-       return await page.evaluate(() => {
+        await page.goto( url, { waitUntil: 'networkidle2' } );
 
-            let reviewsData = [];
+        let reviews = [];
+        let previousHeight = 0;
 
-            const reviewsElements = document.querySelectorAll('.WMbnJf.vY6njf.gws-localreviews__google-review');
-    
-            if ( ! reviewsElements.length ) {
-                return reviewsData;
-            }
+        try {
+            while ( reviews.length < 100 ) {
+                // Scroll to the bottom of the modal
+                await page.evaluate(() => {
+                  const modal = document.querySelector('.review-dialog-list');
+                  modal.scrollTo(0, modal.scrollHeight);
+                });
+          
+                // Wait for new reviews to load
+
+                await this.wait( 2000 );
+
+                const newReviews = await page.evaluate(() => {
+                    let reviewsData = [];
         
-            for (const reviewElement of reviewsElements) {
-                const singleReview = {};
+                    const reviewsElements = document.querySelectorAll('.gws-localreviews__google-review');
             
-                // Extract author's name
-                const authorNameElement = reviewElement.querySelector('.TSUbDb a');
-                singleReview.authorName = authorNameElement ? authorNameElement.textContent.trim() : 'Unknown';
-            
-                // Extract author's image
-                const authorImageElement = reviewElement.querySelector('.lDY1rd');
-                singleReview.authorImage = authorImageElement ? authorImageElement.getAttribute('src') : '';
-            
-                // Extract author tag (e.g., Local Guide)
-                const authorTagElement = reviewElement.querySelector('.QV3IV');
-                singleReview.authorTag = authorTagElement ? authorTagElement.textContent.trim() : 'No Tag';
-            
-                // Extract review rating
-                const ratingElement = reviewElement.querySelector('.lTi8oc.z3HNkc');
-                singleReview.rating = ratingElement ? ratingElement.getAttribute('aria-label') : 'No Rating';
-            
-                // Extract date of review
-                const dateElement = reviewElement.querySelector('.dehysf.lTi8oc');
-                singleReview.date = dateElement ? dateElement.textContent.trim() : 'Unknown Date';
-            
-                // Extract full review text if available, otherwise fallback to snippet
-                const fullReviewTextElement = reviewElement.querySelector('.review-full-text');
-                const snippetReviewElement = reviewElement.querySelector('.review-snippet');
-                singleReview.reviewText = fullReviewTextElement && fullReviewTextElement.style.display === 'none'
-                    ? fullReviewTextElement.textContent.trim()
-                    : snippetReviewElement
-                    ? snippetReviewElement.textContent.trim()
-                    : 'No Review Text';
-            
-                // Extract metadata (e.g., Food, Service, Atmosphere ratings) as key-value pairs
-                const metaElements = reviewElement.querySelectorAll('.k8MTF span');
-                singleReview.meta = metaElements
-                    ? Array.from(metaElements)
-                          .filter(meta => meta.textContent.includes(':')) // Ensure it's a key-value style
-                          .map(meta => {
-                              const [key, value] = meta.textContent.split(':').map(str => str.trim());
-                              return { key, value };
-                          })
-                    : [];
-            
-                // Extract image links associated with the review
-                const imageElements = reviewElement.querySelectorAll('div.JrO5Xe');
-                singleReview.imageLinks = imageElements
-                    ? Array.from(imageElements).map(imgElement => {
-                        // Extract background-image URL from inline style
-                        const backgroundImage = imgElement.style.backgroundImage;
-                        const match = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
-                        if (match) {
-                            return match[1].replace(/w\d+-h\d+/, 'w800-h500'); // Replace wX-hY with w800-h500
-                        }
-                        return null;
-                      }).filter(Boolean) // Remove null values
-                    : [];
-            
-                // Add the processed review to the data array
-                reviewsData.push(singleReview);
+                    if ( ! reviewsElements.length ) {
+                        return reviewsData;
+                    }
+                
+                    for ( const reviewElement of reviewsElements ) {
+                        const singleReview = {};
+                    
+                        // Extract author's name
+                        const authorNameElement = reviewElement.querySelector('.TSUbDb a');
+                        singleReview.authorName = authorNameElement ? authorNameElement.textContent.trim() : 'Unknown';
+                    
+                        // Extract author's image
+                        const authorImageElement = reviewElement.querySelector('.lDY1rd');
+                        singleReview.authorImage = authorImageElement ? authorImageElement.getAttribute('src') : '';
+                    
+                        // Extract author tag (e.g., Local Guide)
+                        const authorTagElement = reviewElement.querySelector('.QV3IV');
+                        singleReview.authorTag = authorTagElement ? authorTagElement.textContent.trim() : 'No Tag';
+                    
+                        // Extract review rating
+                        const ratingElement = reviewElement.querySelector('.lTi8oc.z3HNkc');
+                        singleReview.rating = ratingElement ? ratingElement.getAttribute('aria-label') : 'No Rating';
+                    
+                        // Extract date of review
+                        const dateElement = reviewElement.querySelector('.dehysf.lTi8oc');
+                        singleReview.date = dateElement ? dateElement.textContent.trim() : 'Unknown Date';
+                    
+                        // Extract full review text if available, otherwise fallback to snippet
+                        const fullReviewTextElement = reviewElement.querySelector('.review-full-text');
+                        const snippetReviewElement = reviewElement.querySelector('.review-snippet');
+                        singleReview.reviewText = fullReviewTextElement && fullReviewTextElement.style.display === 'none'
+                            ? fullReviewTextElement.textContent.trim()
+                            : snippetReviewElement
+                            ? snippetReviewElement.textContent.trim()
+                            : 'No Review Text';
+                    
+                        // Extract metadata (e.g., Food, Service, Atmosphere ratings) as key-value pairs
+                        const metaElements = reviewElement.querySelectorAll('.k8MTF span');
+                        singleReview.meta = metaElements
+                            ? Array.from(metaElements)
+                                  .filter(meta => meta.textContent.includes(':')) // Ensure it's a key-value style
+                                  .map(meta => {
+                                      const [key, value] = meta.textContent.split(':').map(str => str.trim());
+                                      return { key, value };
+                                  })
+                            : [];
+                    
+                        // Extract image links associated with the review
+                        const imageElements = reviewElement.querySelectorAll('div.JrO5Xe');
+                        singleReview.imageLinks = imageElements
+                            ? Array.from(imageElements).map(imgElement => {
+                                // Extract background-image URL from inline style
+                                const backgroundImage = imgElement.style.backgroundImage;
+                                const match = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+                                if (match) {
+                                    return match[1].replace(/w\d+-h\d+/, 'w800-h500'); // Replace wX-hY with w800-h500
+                                }
+                                return null;
+                              }).filter(Boolean) // Remove null values
+                            : [];
+                    
+                        // Add the processed review to the data array
+                        reviewsData.push(singleReview);
+                    }
+        
+                    return reviewsData;
+                });
+
+                reviews = newReviews.slice( 0, 100 );
+
+                // Break if no new reviews are loaded
+                const currentHeight = await page.evaluate(
+                    () => document.querySelector('.review-dialog-list').scrollHeight
+                );
+
+                if ( currentHeight === previousHeight ) break;
+
+                previousHeight = currentHeight;
             }
 
-            return reviewsData;
-        });
+            console.log(`Scraped ${reviews.length} reviews.`);
+
+            return { totalItems: reviews.length, reviews };
+
+        } catch ( error ) {
+            console.error( 'Error:', error );
+        } finally {
+            await browser.close();
+        }
     }
 
     async scrapReviewsV2() {
